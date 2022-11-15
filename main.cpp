@@ -51,6 +51,7 @@ int main(int argc, char** argv)
     sprintf(outputfilelinkquality, "output_link_quality port %d starttime %ld.txt", port, current_time.tv_sec);
     // FILE* outfile = fopen(outputfilename, "w");
     FILE* outlinkquality = fopen(outputfilelinkquality, "w");
+    fprintf(outlinkquality, "counter,senderID,packet_num,sec,usec,link quality\n");
 
     
     PACKET packet;
