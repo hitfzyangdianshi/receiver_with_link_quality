@@ -3,6 +3,7 @@
 #include <bits/stdc++.h>
 
 #include<sys/types.h>
+#include<sys/time.h>
 #include<netinet/in.h>
 #include<netdb.h>
 #include<sys/socket.h>
