@@ -11,6 +11,7 @@
 #include<arpa/inet.h>
 
 using namespace std;
+using namespace chrono;
 
 
 
@@ -18,14 +19,11 @@ struct data_packet {
     __uint16_t senderID;
     __uint32_t packet_num;
 
-    __uint64_t tv_sec;		/* Seconds.  */
-    __uint64_t tv_usec;	/* Microseconds.  */ // __SLONGWORD_TYPE	long int
+    __uint64_t time_since_epoch_micro;
 
     __int32_t payload[10];
-}; // sizeof(PACKET) should be 64
+}; // sizeof(PACKET) should be 56
 typedef struct data_packet PACKET;
-
-struct timeval current_time;
 
 queue <__uint32_t> buffer_storage_packet_num;
 
@@ -44,14 +42,20 @@ int main(int argc, char** argv)
     }
     int port = atoi(argv[1]);
 
-    gettimeofday(&current_time, NULL);
 
-    char outputfilename[100], outputfilelinkquality[100];
+    char outputfilename[100], outputfilelinkquality[100], outfiledelay[100];
     // sprintf(outputfilename, "output port %d starttime %ld.txt", port, current_time.tv_sec);
-    sprintf(outputfilelinkquality, "output_link_quality port %d starttime %ld.txt", port, current_time.tv_sec);
+
+    __uint64_t current_time=duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+
+    sprintf(outputfilelinkquality, "output_link_quality port %d starttime %lu.txt", port, current_time);
     // FILE* outfile = fopen(outputfilename, "w");
     FILE* outlinkquality = fopen(outputfilelinkquality, "w");
-    fprintf(outlinkquality, "counter,senderID,packet_num,sec,usec,link quality\n");
+    fprintf(outlinkquality, "counter,senderID,packet_num,microsec,link quality\n");
+
+    sprintf(outfiledelay, "output_delay port %d starttime %lu.txt", port, current_time);
+    FILE* outdelay = fopen(outfiledelay, "w");
+    fprintf(outdelay, "counter,senderID,packet_num,usec_orig,usec_rec,time_diff\n");
 
     
     PACKET packet;
@@ -79,9 +83,11 @@ int main(int argc, char** argv)
     while (true) {
 
         if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
-            cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.tv_sec << "\t" << packet.tv_usec << "\t" << packet.payload[0] << endl;
+            current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+            cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << "\t" << packet.payload[0] << endl;
             // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
             buffer_storage_packet_num.push(packet.packet_num);
+            fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
         }
         else {
             fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
@@ -92,7 +98,7 @@ int main(int argc, char** argv)
             double lq;
             lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
             printf("link quality: %f\n", lq);
-            fprintf(outlinkquality, "%lu,%u,%u,%lu,%lu,%f\n", counter-1, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec,lq);
+            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter-1, packet.senderID, packet.packet_num, packet.time_since_epoch_micro,lq);
             clear_q(buffer_storage_packet_num);
         }
         fflush(NULL);
