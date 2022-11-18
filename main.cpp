@@ -98,7 +98,7 @@ int main(int argc, char** argv)
             double lq;
             lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
             printf("link quality: %f\n", lq);
-            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter-1, packet.senderID, packet.packet_num, packet.time_since_epoch_micro,lq);
+            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
             clear_q(buffer_storage_packet_num);
         }
         fflush(NULL);
