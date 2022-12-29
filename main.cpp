@@ -13,7 +13,7 @@
 using namespace std;
 using namespace chrono;
 
-
+#define QUEUE_BUFFER_SIZE 50
 
 struct data_packet {
     __uint16_t senderID;
@@ -21,8 +21,8 @@ struct data_packet {
 
     __uint64_t time_since_epoch_micro;
 
-    __int32_t payload[10];
-}; // sizeof(PACKET) should be 56
+    __int32_t payload[1000];
+};  
 typedef struct data_packet PACKET;
 
 queue <__uint32_t> buffer_storage_packet_num;
@@ -80,11 +80,12 @@ int main(int argc, char** argv)
     int recvbytes;
     unsigned int addrLen = sizeof(struct sockaddr_in);
     unsigned long counter = 0;
+    double lq;
     while (true) {
 
         if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
             current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
-            cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << "\t" << packet.payload[0] << endl;
+            cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
             // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
             buffer_storage_packet_num.push(packet.packet_num);
             fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
@@ -94,13 +95,24 @@ int main(int argc, char** argv)
         }
 
         counter++;
-        if (counter % 50 == 0) {
-            double lq;
+       /* if (counter % QUEUE_BUFFER_SIZE == 0) {
             lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
             printf("link quality: %f\n", lq);
             fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
             clear_q(buffer_storage_packet_num);
+        }*/
+
+        if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
+            while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
+                buffer_storage_packet_num.pop();
+            }
+
+            lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
+            printf("link quality: %f\n", lq);
+            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);      
         }
+
+
         fflush(NULL);
     }
 
