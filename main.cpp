@@ -26,6 +26,7 @@ struct data_packet {
 typedef struct data_packet PACKET;
 
 queue <__uint32_t> buffer_storage_packet_num;
+queue <__uint32_t> buffer_storage_packet_num_a;
 
 
 void clear_q(queue<__uint32_t>& q) {
@@ -36,11 +37,12 @@ void clear_q(queue<__uint32_t>& q) {
 
 int main(int argc, char** argv)
 {
-    if (argc < 2) {
-        cout << "please give the port number for this receiver " << endl;
+    if (argc < 3) {
+        cout << "please give the port number for this receiver, and the number of packets you want to receive(0=infinite) " << endl;
         exit(EXIT_FAILURE);
     }
     int port = atoi(argv[1]);
+    long numbers_of_packets = atoi(argv[2]);
 
 
     char outputfilename[100], outputfilelinkquality[100], outfiledelay[100];
@@ -48,12 +50,12 @@ int main(int argc, char** argv)
 
     __uint64_t current_time=duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
 
-    sprintf(outputfilelinkquality, "output_link_quality port %d starttime %lu.txt", port, current_time);
+    sprintf(outputfilelinkquality, "output_link_quality port %d.txt", port);
     // FILE* outfile = fopen(outputfilename, "w");
     FILE* outlinkquality = fopen(outputfilelinkquality, "w");
     fprintf(outlinkquality, "counter,senderID,packet_num,microsec,link quality\n");
 
-    sprintf(outfiledelay, "output_delay port %d starttime %lu.txt", port, current_time);
+    sprintf(outfiledelay, "output_delay port %d.txt", port);
     FILE* outdelay = fopen(outfiledelay, "w");
     fprintf(outdelay, "counter,senderID,packet_num,usec_orig,usec_rec,time_diff\n");
 
@@ -81,39 +83,88 @@ int main(int argc, char** argv)
     unsigned int addrLen = sizeof(struct sockaddr_in);
     unsigned long counter = 0;
     double lq;
-    while (true) {
+    if (numbers_of_packets == 0) {
+        while (true) {
 
-        if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
-            current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
-            cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
-            // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
-            buffer_storage_packet_num.push(packet.packet_num);
-            fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
-        }
-        else {
-            fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
-        }
-
-        counter++;
-       /* if (counter % QUEUE_BUFFER_SIZE == 0) {
-            lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
-            printf("link quality: %f\n", lq);
-            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
-            clear_q(buffer_storage_packet_num);
-        }*/
-
-        if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
-            while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
-                buffer_storage_packet_num.pop();
+            if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
+                current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+                cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
+                // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
+                if(packet.senderID == port)
+                    buffer_storage_packet_num.push(packet.packet_num);
+                else
+                    buffer_storage_packet_num_a.push(packet.packet_num);
+                fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
+            }
+            else {
+                fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
             }
 
-            lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
-            printf("link quality: %f\n", lq);
-            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);      
+            counter++;
+            /* if (counter % QUEUE_BUFFER_SIZE == 0) {
+                 lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
+                 printf("link quality: %f\n", lq);
+                 fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+                 clear_q(buffer_storage_packet_num);
+             }*/
+
+            if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
+                while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
+                    buffer_storage_packet_num.pop();
+                }
+
+                lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
+                printf("link quality: %f\n", lq);
+                fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+            }
+            if (buffer_storage_packet_num_a.size() >= QUEUE_BUFFER_SIZE) {
+                while (buffer_storage_packet_num_a.size() > QUEUE_BUFFER_SIZE) {
+                    buffer_storage_packet_num_a.pop();
+                }
+
+                lq = ((double)(buffer_storage_packet_num_a.size())) / ((double)(buffer_storage_packet_num_a.back() - buffer_storage_packet_num_a.front() + 1));
+                printf("link quality: %f\n", lq);
+                fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+            }
+
+
+            fflush(NULL);
         }
+    }
+    else {
+        for (int count_ = 0; count_ < numbers_of_packets; count_++) {
+            if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
+                current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+                cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
+                // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
+                buffer_storage_packet_num.push(packet.packet_num);
+                fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
+            }
+            else {
+                fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
+            }
+
+            counter++;
+            /* if (counter % QUEUE_BUFFER_SIZE == 0) {
+                 lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
+                 printf("link quality: %f\n", lq);
+                 fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+                 clear_q(buffer_storage_packet_num);
+             }*/
+
+            if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
+                while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
+                    buffer_storage_packet_num.pop();
+                }
+
+                lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
+                printf("link quality: %f\n", lq);
+                fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+            }
 
 
-        fflush(NULL);
+            fflush(NULL);
+        }
     }
 
     return 0;
