@@ -25,8 +25,7 @@ struct data_packet {
 };  
 typedef struct data_packet PACKET;
 
-queue <__uint32_t> buffer_storage_packet_num;
-queue <__uint32_t> buffer_storage_packet_num_a;
+queue <__uint32_t> buffer_storage_packet_num[20];
 
 
 void clear_q(queue<__uint32_t>& q) {
@@ -45,7 +44,7 @@ int main(int argc, char** argv)
     long numbers_of_packets = atoi(argv[2]);
 
 
-    char outputfilename[100], outputfilelinkquality[100], outfiledelay[100];
+    char outputfilename[100], outputfilelinkquality[100], outfiledelay[100],outfilepackets[100];
     // sprintf(outputfilename, "output port %d starttime %ld.txt", port, current_time.tv_sec);
 
     __uint64_t current_time=duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
@@ -58,6 +57,9 @@ int main(int argc, char** argv)
     sprintf(outfiledelay, "output_delay port %d.txt", port);
     FILE* outdelay = fopen(outfiledelay, "w");
     fprintf(outdelay, "counter,senderID,packet_num,usec_orig,usec_rec,time_diff\n");
+
+    sprintf(outfilepackets, "output_packets port %d.txt", port);
+    FILE* outpackets = fopen(outfilepackets, "w");
 
     
     PACKET packet;
@@ -90,82 +92,54 @@ int main(int argc, char** argv)
                 current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
                 cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
                 // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
-                if(packet.senderID == port)
-                    buffer_storage_packet_num.push(packet.packet_num);
-                else
-                    buffer_storage_packet_num_a.push(packet.packet_num);
-                fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
+                /*buffer_storage_packet_num[packet.senderID-5100].push(packet.packet_num);*/
+                fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, 
+                    current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
             }
             else {
                 fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
             }
 
             counter++;
-            /* if (counter % QUEUE_BUFFER_SIZE == 0) {
-                 lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
-                 printf("link quality: %f\n", lq);
-                 fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
-                 clear_q(buffer_storage_packet_num);
-             }*/
-
-            if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
-                while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
-                    buffer_storage_packet_num.pop();
-                }
-
-                lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
-                printf("link quality: %f\n", lq);
-                fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
-            }
-            if (buffer_storage_packet_num_a.size() >= QUEUE_BUFFER_SIZE) {
-                while (buffer_storage_packet_num_a.size() > QUEUE_BUFFER_SIZE) {
-                    buffer_storage_packet_num_a.pop();
-                }
-
-                lq = ((double)(buffer_storage_packet_num_a.size())) / ((double)(buffer_storage_packet_num_a.back() - buffer_storage_packet_num_a.front() + 1));
-                printf("link quality: %f\n", lq);
-                fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
-            }
-
 
             fflush(NULL);
         }
     }
-    else {
-        for (int count_ = 0; count_ < numbers_of_packets; count_++) {
-            if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
-                current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
-                cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
-                // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
-                buffer_storage_packet_num.push(packet.packet_num);
-                fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
-            }
-            else {
-                fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
-            }
+    //else {
+    //    for (int count_ = 0; count_ < numbers_of_packets; count_++) {
+    //        if ((recvbytes = recvfrom(sockListen, &packet, sizeof(packet), 0, (struct sockaddr*)&recvAddr, &addrLen)) != -1) {
+    //            current_time = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+    //            cout << packet.senderID << "\t" << packet.packet_num << "\t" << packet.time_since_epoch_micro << endl;
+    //            // fprintf(outfile, "%lu,%u,%u,%lu,%lu\n", counter, packet.senderID, packet.packet_num, packet.tv_sec, packet.tv_usec);
+    //            buffer_storage_packet_num.push(packet.packet_num);
+    //            fprintf(outdelay, "%lu,%u,%u,%lu,%lu,%ld\n", counter, packet.senderID, packet.packet_num, packet.time_since_epoch_micro, current_time, (__int64_t)current_time - (__int64_t)packet.time_since_epoch_micro);
+    //        }
+    //        else {
+    //            fprintf(stderr, "recvfrom fail, errno=%d, %s\n", errno, strerror(errno));
+    //        }
 
-            counter++;
-            /* if (counter % QUEUE_BUFFER_SIZE == 0) {
-                 lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
-                 printf("link quality: %f\n", lq);
-                 fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
-                 clear_q(buffer_storage_packet_num);
-             }*/
+    //        counter++;
+    //        /* if (counter % QUEUE_BUFFER_SIZE == 0) {
+    //             lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back()- buffer_storage_packet_num.front()+1));
+    //             printf("link quality: %f\n", lq);
+    //             fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+    //             clear_q(buffer_storage_packet_num);
+    //         }*/
 
-            if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
-                while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
-                    buffer_storage_packet_num.pop();
-                }
+    //        if (buffer_storage_packet_num.size() >= QUEUE_BUFFER_SIZE) {
+    //            while (buffer_storage_packet_num.size() > QUEUE_BUFFER_SIZE) {
+    //                buffer_storage_packet_num.pop();
+    //            }
 
-                lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
-                printf("link quality: %f\n", lq);
-                fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
-            }
+    //            lq = ((double)(buffer_storage_packet_num.size())) / ((double)(buffer_storage_packet_num.back() - buffer_storage_packet_num.front() + 1));
+    //            printf("link quality: %f\n", lq);
+    //            fprintf(outlinkquality, "%lu,%u,%u,%lu,%f\n", counter - 1, packet.senderID, packet.packet_num, current_time, lq);
+    //        }
 
 
-            fflush(NULL);
-        }
-    }
+    //        fflush(NULL);
+    //    }
+    /*}*/
 
     return 0;
 }
